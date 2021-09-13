@@ -3,7 +3,7 @@ clear all, clc, close all,
 %% setup parameters:
 % generating randomly distributed particles in a volume
 nParticles = single(100);
-particlesVolumeSizeXyz = single([10; 10; 0.01]);
+particlesVolumeSizeXyz = single([1; 10; 0.01]);
 
 % defining sensor
 sensorDistanceToZ = single(1000);
@@ -11,18 +11,18 @@ sensorSizeXy = single([0.5; 0.5]);
 sensorResolutionXy = single([100; 100]);
 
 % particle moving
-nMoves = single(20);
+nMoves = single(1000);
 maxSpeedParticle = single(0.01);
 directionParticleDegreesConstant = single(0);
 isOrderedMotion = uint8(0);
 
 % %%%%%%%% PLOTS %%%%%%%%%%
 % plot the figures
-isPlot = uint8(0);
+isPlot = uint8(1);
     isSavePlot = uint8(0);
 
 % create gif
-isGif = uint8(1);
+isGif = uint8(0);
     isSaveGif = uint8(0);
 
 % Calculating Time Intensity Autocorrelation Function (tiaf)
@@ -224,6 +224,7 @@ for iter = 1:nMoves
 
 
     %% create gif
+    isGif = 0;
     if isGif
           % Capture the plot as an image 
         if isOrderedMotion
@@ -231,7 +232,7 @@ for iter = 1:nMoves
         else
             filename = 'Brownian_lscigif.gif';
         end
-        h = figure('Visible','off');
+        h = figure;
 
         imagesc(sensorImage)
         frame = getframe(h); 
