@@ -1,0 +1,278 @@
+clear all, clc, close all,
+% Modelling of particles in a volume
+%% setup parameters:
+% generating randomly distributed particles in a volume
+nParticles = single(1000);
+particlesVolumeSizeXyz = single([0.1; 0.1; 0.01]);
+
+% defining sensor
+sensorDistanceToZ = single(1);
+sensorSizeXy = single([1;1]);
+sensorResolutionXy = single([100;100]);
+
+% particle moving
+nMoves = single(1000);
+maxSpeedParticle = single(0.01);
+directionParticleDegreesConstant = single(0);
+isOrderedMotion = uint8(0);
+
+% %%%%%%%% PLOTS %%%%%%%%%%
+% plot the figures
+isPlot = uint8(1);
+    isSavePlot = uint8(0);
+
+% create gif
+isGif = uint8(0);
+    isSaveGif = uint8(0);
+
+% Calculating Time Intensity Autocorrelation Function (tiaf)
+isCalculateTiaf = uint8(0);
+    isSaveCalculatedTiaf = uint8(0);
+        maxTau = uint16(50);
+
+
+%% generating randomly distributed particles in a volume
+% nParticles = 100;
+% particlesVolumeSizeXyz = [0.5; 0.5; 0.1];
+particlesPositionXyz = [rand(nParticles, 1)*particlesVolumeSizeXyz(1),...
+                        rand(nParticles, 1)*particlesVolumeSizeXyz(2),...
+                        -rand(nParticles, 1)*particlesVolumeSizeXyz(3)];
+% scatter3(particlesPositionXyz(:,1), particlesPositionXyz(:,2), particlesPositionXyz(:,3));
+
+
+%% defining sensor
+% sensorDistanceToZ = 10;
+% sensorSizeXy = [10;10];
+% sensorResolutionXy = [20;20];
+
+sensorCentreXyz = [particlesVolumeSizeXyz(1)/2;...
+                   particlesVolumeSizeXyz(2)/2;...
+                   sensorDistanceToZ];
+
+sensorPixelsCoordinatesX = linspace(sensorCentreXyz(1)-sensorSizeXy(1),sensorCentreXyz(1)+sensorSizeXy(1),sensorResolutionXy(1));
+sensorPixelsCoordinatesY = linspace(sensorCentreXyz(2)-sensorSizeXy(2),sensorCentreXyz(2)+sensorSizeXy(2),sensorResolutionXy(2));
+
+sensorPixelsCoordinates_X_RepeatedYTimes = repmat(sensorPixelsCoordinatesX,[sensorResolutionXy(2) 1]);
+sensorPixelsCoordinates_X_RepeatedYTimesReshaped = reshape(sensorPixelsCoordinates_X_RepeatedYTimes,[1 sensorResolutionXy(1)*sensorResolutionXy(2)]);
+clear sensorPixelsCoordinates_X_RepeatedYTimes
+
+sensorPixelsCoordinates_Y_RepeatedXTimes = repmat(sensorPixelsCoordinatesY,[1 sensorResolutionXy(1)]);
+clear sensorPixelsCoordinatesX sensorPixelsCoordinatesY
+
+sensorPixelsCoordinatesXyz = [sensorPixelsCoordinates_X_RepeatedYTimesReshaped;...
+                              sensorPixelsCoordinates_Y_RepeatedXTimes;...
+                              repmat(sensorCentreXyz(3),[1,sensorResolutionXy(1)*sensorResolutionXy(2)])]';
+clear sensorPixelsCoordinates_X_RepeatedYTimesReshaped sensorPixelsCoordinates_Y_RepeatedXTimes
+
+
+%% particle moving
+% nMoves = 10000;
+% 
+% maxSpeedParticle = 0.01;
+% directionParticleDegreesConstant = 0;
+% isOrderedMotion = 1;
+
+% the corners are (X,Y):
+%   bottom left     = 0, 0
+%   bottom right    = particlesVolumeSizeXyz(1), 0
+%   upper left      = 0, particlesVolumeSizeXyz(2)
+%   upper right     = particlesVolumeSizeXyz(1), particlesVolumeSizeXyz(2)
+particlesFrameCorners = [0,0;...
+                         particlesVolumeSizeXyz(1), 0;...
+                         0, particlesVolumeSizeXyz(2);...
+                         particlesVolumeSizeXyz(1), particlesVolumeSizeXyz(2)];
+timeIntensityAutocorrelationFunction = nan(sensorResolutionXy(1),sensorResolutionXy(2),nMoves);
+
+for iter = 1:nMoves
+
+    if isOrderedMotion
+        speedParticle = maxSpeedParticle;
+        directionParticleDegrees = directionParticleDegreesConstant;
+    else
+        speedParticle = rand(1,nParticles)*maxSpeedParticle;
+        directionParticleDegrees = randi([0 360],1,nParticles);
+    end
+        
+    particlesPositionXyz(:,1) = particlesPositionXyz(:,1)' + ...
+                                speedParticle .* cosd(directionParticleDegrees);
+    particlesPositionXyz(:,2) = particlesPositionXyz(:,2)' + ...
+                                speedParticle .* sind(directionParticleDegrees);
+                                
+    %% if particle is out of scope bring it to the begining of the frame
+    %       in the same trajectory and direction
+    
+    % when particles are out of the X axis:
+    % - from the side of the max volume side in the X axis
+    
+    if sum(particlesPositionXyz(:,1) > particlesVolumeSizeXyz(1)) > 0
+        particlesPositionXyz(particlesPositionXyz(:,1) > particlesVolumeSizeXyz(1), 2) = ...
+                 rand(1, sum(particlesPositionXyz(:,1) > particlesVolumeSizeXyz(1))) * particlesVolumeSizeXyz(1);
+        particlesPositionXyz(particlesPositionXyz(:,1) > particlesVolumeSizeXyz(1), 1) = 0;
+%                              particlesPositionXyz(particlesPositionXyz(:,1) > particlesVolumeSizeXyz(1), 1) - ...
+%                              cosd(directionParticleDegrees) * particlesVolumeSizeXyz(1);
+    end
+    % - below 0
+    if sum(particlesPositionXyz(:,1) < 0) > 0
+        particlesPositionXyz(particlesPositionXyz(:,1) < 0, 2) = ...
+                 rand(1, sum(particlesPositionXyz(:,1) < 0)) * particlesVolumeSizeXyz(1);
+        particlesPositionXyz(particlesPositionXyz(:,1) < 0, 1) = particlesVolumeSizeXyz(2); 
+%                              particlesPositionXyz(particlesPositionXyz(:,1) < 0, 1) - ...
+%                              cosd(directionParticleDegrees) * particlesVolumeSizeXyz(1);
+    end
+    
+    % - from the side of the max volume side in the Y axis
+    if sum(particlesPositionXyz(:,2) > particlesVolumeSizeXyz(2)) > 0
+        particlesPositionXyz(particlesPositionXyz(:,2) > particlesVolumeSizeXyz(2), 2) = ...
+                 rand(1, sum(particlesPositionXyz(:,2) > particlesVolumeSizeXyz(2))) * particlesVolumeSizeXyz(2);
+        particlesPositionXyz(particlesPositionXyz(:,2) > particlesVolumeSizeXyz(2), 1) = 0; 
+%                              particlesPositionXyz(particlesPositionXyz(:,1) > particlesVolumeSizeXyz(2), 2) - ...
+%                              cosd(directionParticleDegrees) * particlesVolumeSizeXyz(2);
+    end
+    % - below 0
+    if sum(particlesPositionXyz(:,2) < 0) > 0
+        particlesPositionXyz(particlesPositionXyz(:,2) < 0, 2) = ...
+                 rand(1, sum(particlesPositionXyz(:,2) < 0)) * particlesVolumeSizeXyz(2);
+        particlesPositionXyz(particlesPositionXyz(:,2) < 0, 1) = particlesVolumeSizeXyz(1); 
+%                              particlesPositionXyz(particlesPositionXyz(:,2) < 0, 1) - ...
+%                              cosd(directionParticleDegrees) * particlesVolumeSizeXyz(2);
+    end
+                                
+    %% distance from particle to pixel
+    particlesAugmented = repmat(particlesPositionXyz,[1 1 sensorResolutionXy(1)*sensorResolutionXy(2)]);
+    % clear particlesPositionXyz
+    sensorPixelsCoordinatesXyzAugmented = repmat(sensorPixelsCoordinatesXyz',[1 1 nParticles]);
+%     clear sensorPixelsCoordinatesXyz 
+
+    euclideanDistanceParticlesToPixelsDifference = bsxfun(@minus,...
+                                                particlesAugmented,...
+                                                permute(sensorPixelsCoordinatesXyzAugmented,[3 1 2]));
+    clear particlesAugmented sensorPixelsCoordinatesXyzAugmented 
+    euclideanDistanceParticlesToPixelsSumOfSquares = sum(euclideanDistanceParticlesToPixelsDifference.^2,2);
+    clear euclideanDistanceParticlesToPixelsDifference
+
+
+    %% light scattered from particles for every pixel
+    % E=exp(i*k*r -1i*k*c*t)./r
+    %
+    % i - imaginary unit, r - distance from particle to pixel, 
+    % c - speed of light, k - wavenumber (2pi/lambda), wavelength lambda=0.785 um, time t=0
+    c = single(299792458000000); % um/s
+    lambda = single(0.785); % microns
+    k = 2*pi/lambda;
+    t = 0; %single(1);
+    r = euclideanDistanceParticlesToPixelsSumOfSquares;
+    clear euclideanDistanceParticlesToPixelsSumOfSquares
+    
+    E=exp(1i*k*r -1i*k*c*t)./r;
+    clear r
+
+    superpositionOfScatteredLight = sum(E,1);
+    clear E
+    pixelsIntensity = superpositionOfScatteredLight .* conj(superpositionOfScatteredLight);
+    clear superpositionOfScatteredLight
+    pixelsIntensity = pixelsIntensity/ mean(pixelsIntensity);
+
+
+    %% Reshaping to make sensor image
+    sensorImage = reshape(pixelsIntensity,[sensorResolutionXy(1) sensorResolutionXy(2)]);
+    clear pixelsIntensity
+
+    %% Save sensorImage to calculate Time Intensity Autocorrelation Fuction at the end
+    % 
+    timeIntensityAutocorrelationFunction(:,:,iter) = sensorImage;
+    
+    
+    %% plot the figures
+%     isPlot = 0;
+    if isPlot
+        h = figure;
+        screenSize = get(0, 'ScreenSize');
+        set(gcf, 'Position',  [floor(screenSize(3)/9), floor(screenSize(4)/5), ...
+            floor(screenSize(3)/9)*7, floor(screenSize(4)/5)*3])
+        subplot(1,2,1),
+        scatter(particlesPositionXyz(:,1),particlesPositionXyz(:,2)),
+        axisXmin = 0;
+        axisXmax = particlesVolumeSizeXyz(1);
+        axisYmin = 0;
+        axisYmax = particlesVolumeSizeXyz(2);
+        axis([axisXmin axisXmax axisYmin axisYmax]),
+        subplot(1,2,2),
+        imagesc(sensorImage)
+        % caxis([prctile(sensorImage(:),0.1),prctile(sensorImage(:),99.9)])
+        pause;
+        close all;
+    end
+
+
+    %% create gif
+    isGif = 0;
+    if isGif
+          % Capture the plot as an image 
+        if isOrderedMotion
+            filename = 'Ordered_lscigif.gif';
+        else
+            filename = 'Brownian_lscigif.gif';
+        end
+        h = figure;
+
+        imagesc(sensorImage)
+        frame = getframe(h); 
+        im = frame2im(frame); 
+        [imind,cm] = rgb2ind(im,256); 
+        % Write to the GIF File 
+        if iter == 1 
+          imwrite(imind,cm,filename,'gif', 'Loopcount',inf); 
+        else 
+          imwrite(imind,cm,filename,'gif','WriteMode','append'); 
+        end 
+          
+    end
+    
+    clear sensorImage 
+end
+close all
+
+%% Calculating Time Intensity Autocorrelation Function (tiaf)
+% isCalculateTiaf = 1;
+
+if isCalculateTiaf
+    clear sensorPixelsCoordinatesXyz
+%     maxTau = 100;
+    tiafIntensityTimesIntensityDelayed = nan(sensorResolutionXy(1),...
+                                             sensorResolutionXy(2),...
+                                             nMoves-maxTau);
+    tiaf = nan(1,maxTau);
+    tiafMeanSquaredTime = mean(timeIntensityAutocorrelationFunction,3).^2;
+    for iTau = 1:maxTau
+        tiafIntensityTimesIntensityDelayed = mean(...
+            timeIntensityAutocorrelationFunction(:,:,1:end-maxTau) .* ...
+            timeIntensityAutocorrelationFunction(:,:,iTau:end-maxTau+iTau-1)...
+            ,3);
+        
+        tiafDivision = tiafIntensityTimesIntensityDelayed ./ tiafMeanSquaredTime;
+        tiaf(iTau) = mean(mean(tiafDivision,1),2);
+    end
+
+    decorrelationLag = linspace(1,maxTau,maxTau);
+    figure,plot(decorrelationLag, tiaf)
+   
+    if isOrderedMotion
+        nameOrder = 'Ordered';
+    else
+        nameOrder = 'Brownian';
+    end
+    
+    nameTitle = [nameOrder,' motion'];
+    title(nameTitle)
+    xlabel('decorrelation time \tau_{c}')
+    ylabel('Time Intensity Autocorrelation')
+    
+    if isSaveCalculatedTiaf
+
+        
+    end
+end
+
+
+
+
