@@ -3,7 +3,7 @@ clear all, clc, close all,
 %% setup parameters:
 % generating randomly distributed particles in a volume
 nParticles = single(100);
-particlesVolumeSizeXyz = single([1; 10; 0.01]);
+particlesVolumeSizeXyz = single([10; 10; 0.01]);
 
 % defining sensor
 sensorDistanceToZ = single(1000);
@@ -12,13 +12,13 @@ sensorResolutionXy = single([100; 100]);
 
 % particle moving
 nMoves = single(1000);
-maxSpeedParticle = single(0.01);
+maxSpeedParticle = single(0.001);
 directionParticleDegreesConstant = single(0);
-isOrderedMotion = uint8(0);
+isOrderedMotion = uint8(1);
 
 % %%%%%%%% PLOTS %%%%%%%%%%
 % plot the figures
-isPlot = uint8(1);
+isPlot = uint8(0);
     isSavePlot = uint8(0);
 
 % create gif
@@ -26,9 +26,9 @@ isGif = uint8(0);
     isSaveGif = uint8(0);
 
 % Calculating Time Intensity Autocorrelation Function (tiaf)
-isCalculateTiaf = uint8(0);
+isCalculateTiaf = uint8(1);
     isSaveCalculatedTiaf = uint8(0);
-        maxTau = uint16(50);
+        maxTau = single(50);
         
 % To calibrate the camera position and or particles volume, etc use the
 % following visualizer.
@@ -224,7 +224,6 @@ for iter = 1:nMoves
 
 
     %% create gif
-    isGif = 0;
     if isGif
           % Capture the plot as an image 
         if isOrderedMotion
@@ -232,7 +231,7 @@ for iter = 1:nMoves
         else
             filename = 'Brownian_lscigif.gif';
         end
-        h = figure;
+        h = figure('Visible','off');
 
         imagesc(sensorImage)
         frame = getframe(h); 
@@ -248,6 +247,10 @@ for iter = 1:nMoves
     end
     
     clear sensorImage 
+    
+    if isCalculateTiaf ||
+        display(['iteration: ',num2str(iter),' of ',num2str(nMoves)])
+    end
 end
 close all
 
@@ -255,6 +258,7 @@ close all
 % isCalculateTiaf = 1;
 
 if isCalculateTiaf
+
     clear sensorPixelsCoordinatesXyz
 %     maxTau = 100;
     tiafIntensityTimesIntensityDelayed = nan(sensorResolutionXy(1),...

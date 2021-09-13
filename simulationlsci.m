@@ -2,33 +2,33 @@ clear all, clc, close all,
 % Modelling of particles in a volume
 %% setup parameters:
 % generating randomly distributed particles in a volume
-nParticles = single(100);
-particlesVolumeSizeXyz = single([10; 10; 0.01]);
+nParticles = single(100); % reference value: 100
+particlesVolumeSizeXyz = single([10; 10; 0.01]); % reference value: [10; 10; 0.01]
 
 % defining sensor
-sensorDistanceToZ = single(1000);
-sensorSizeXy = single([0.5; 0.5]);
-sensorResolutionXy = single([100; 100]);
+sensorDistanceToZ = single(1000); % reference value: 1000
+sensorSizeXy = single([0.5; 0.5]); % reference value: [0.5; 0.5]
+sensorResolutionXy = single([100; 100]); % reference value: [100; 100]
 
 % particle moving
-nMoves = single(20);
-maxSpeedParticle = single(0.01);
-directionParticleDegreesConstant = single(0);
+nMoves = single(1000); % reference value: 1000
+maxSpeedParticle = single(0.001); % reference value: 0.001
+directionParticleDegreesConstant = single(0); % reference value: 0
 isOrderedMotion = uint8(0);
 
 % %%%%%%%% PLOTS %%%%%%%%%%
 % plot the figures
-isPlot = uint8(0);
-    isSavePlot = uint8(0);
+isPlot = uint8(1);
+%     isSavePlot = uint8(0); % to implement
 
 % create gif
-isGif = uint8(1);
-    isSaveGif = uint8(0);
+isGif = uint8(0);
+%     isSaveGif = uint8(0); % to implement
 
 % Calculating Time Intensity Autocorrelation Function (tiaf)
 isCalculateTiaf = uint8(0);
-    isSaveCalculatedTiaf = uint8(0);
-        maxTau = uint16(50);
+%     isSaveCalculatedTiaf = uint8(0); % to implement
+        maxTau = single(50);
         
 % To calibrate the camera position and or particles volume, etc use the
 % following visualizer.
@@ -247,6 +247,10 @@ for iter = 1:nMoves
     end
     
     clear sensorImage 
+    
+    if isCalculateTiaf || isGif
+        display(['iteration: ',num2str(iter),' of ',num2str(nMoves)])
+    end
 end
 close all
 
@@ -254,6 +258,7 @@ close all
 % isCalculateTiaf = 1;
 
 if isCalculateTiaf
+
     clear sensorPixelsCoordinatesXyz
 %     maxTau = 100;
     tiafIntensityTimesIntensityDelayed = nan(sensorResolutionXy(1),...
